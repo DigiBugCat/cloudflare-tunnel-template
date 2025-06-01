@@ -1,0 +1,34 @@
+# Alternative template using network_mode for services that need it
+version: '3.8'
+
+services:
+  # Your main application service
+  app:
+    image: your-app:latest
+    container_name: ${TUNNEL_NAME}-app
+    restart: unless-stopped
+    ports:
+      - "${SERVICE_PORT}:${SERVICE_PORT}"
+    environment:
+      # Add your app-specific environment variables here
+      - NODE_ENV=production
+    volumes:
+      # Add your app-specific volumes here
+      - app_data:/app/data
+
+  # Cloudflare tunnel using network_mode (shares network with app)
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: ${TUNNEL_NAME}-cloudflared
+    restart: unless-stopped
+    network_mode: "service:app"
+    command: tunnel run
+    volumes:
+      - ./cloudflared/config.yml:/home/nonroot/.cloudflared/config.yml:ro
+      - ./cloudflared/credentials.json:/home/nonroot/.cloudflared/credentials.json:ro
+    depends_on:
+      - app
+
+volumes:
+  app_data:
+    driver: local

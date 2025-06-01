@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # Your main application service
+  app:
+    image: your-app:latest
+    container_name: ${TUNNEL_NAME}-app
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${SERVICE_PORT}:${SERVICE_PORT}"
+    environment:
+      # Add your app-specific environment variables here
+      - NODE_ENV=production
+    volumes:
+      # Add your app-specific volumes here
+      - app_data:/app/data
+    networks:
+      - tunnel_network
+
+  # Cloudflare tunnel sidecar
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: ${TUNNEL_NAME}-cloudflared
+    restart: unless-stopped
+    command: tunnel run
+    networks:
+      - tunnel_network
+    volumes:
+      - ./cloudflared/config.yml:/home/nonroot/.cloudflared/config.yml:ro
+      - ./cloudflared/credentials.json:/home/nonroot/.cloudflared/credentials.json:ro
+    depends_on:
+      - app
+    healthcheck:
+      test: ["CMD", "cloudflared", "tunnel", "info"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  tunnel_network:
+    driver: bridge
+
+volumes:
+  app_data:
+    driver: local
